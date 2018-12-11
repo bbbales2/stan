@@ -1018,18 +1018,18 @@ namespace stan {
         pass = false;
         return;
       }
+      if (a.lhs_var_has_sliced_idx() && a.lhs_var_occurs_on_rhs()) {
+        // allow assignment but generate warning
+        error_msgs << "Info: assignment to variable name "
+                   << "\"" << name << "\","
+                   << " variable occurs on right-hand side of assignment"
+                   << " causing inefficient deep copy to avoid aliasing."
+                   << std::endl;
+      }
       if (a.is_simple_assignment()) {
         if (!has_same_shape(lhs_type, a.rhs_, name, "assignment", error_msgs)) {
           pass = false;
           return;
-        }
-        if (a.lhs_var_occurs_on_rhs()) {
-          // this only requires a warning --- a deep copy will be made
-          error_msgs << "Info: left-hand side variable"
-                     << " (name=" << name << ")"
-                     << " occurs on right-hand side of assignment, causing"
-                     << " inefficient deep copy to avoid aliasing."
-                     << std::endl;
         }
         pass = true;
         return;
@@ -2910,6 +2910,12 @@ namespace stan {
     }
     boost::phoenix::function<empty_range> empty_range_f;
 
+    void empty_locscale::operator()(locscale& r,
+                                 std::stringstream& /*error_msgs*/) const {
+      r = locscale();
+    }
+    boost::phoenix::function<empty_locscale> empty_locscale_f;
+
     void set_int_range_lower::operator()(range& range,
                                          const expression& expr,
                                          bool& pass,
@@ -2972,6 +2978,29 @@ namespace stan {
       validator(expr, pass, error_msgs);
     }
     boost::phoenix::function<set_double_range_upper> set_double_range_upper_f;
+
+    void set_double_locscale_loc::operator()(locscale& locscale,
+                                            const expression& expr,
+                                            bool& pass,
+                                            std::stringstream& error_msgs)
+      const {
+      locscale.loc_ = expr;
+      validate_double_expr validator;
+      validator(expr, pass, error_msgs);
+    }
+    boost::phoenix::function<set_double_locscale_loc> set_double_locscale_loc_f;
+
+    void set_double_locscale_scale::operator()(locscale& locscale,
+                                            const expression& expr,
+                                            bool& pass,
+                                            std::stringstream& error_msgs)
+      const {
+      locscale.scale_ = expr;
+      validate_double_expr validator;
+      validator(expr, pass, error_msgs);
+    }
+    boost::phoenix::function<set_double_locscale_scale>
+      set_double_locscale_scale_f;
 
     void validate_array_block_var_decl::operator()(
                                         block_var_decl& var_decl_result,
@@ -3236,5 +3265,4 @@ namespace stan {
 
   }
 }
-
 #endif
