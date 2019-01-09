@@ -35,7 +35,8 @@ namespace stan {
 	  double lp;
 	  Eigen::VectorXd grad;
 	  Eigen::MatrixXd hessian;
-	  stan::math::hessian(log_prob_wrapper<Model>(model), q, lp, grad, hessian);
+	  throw std::runtime_error("adapt experimental=1 and metric=diag_e isn't enabled");
+	  //stan::math::hessian(log_prob_wrapper<Model>(model), q, lp, grad, hessian);
 	  hessians.push_back(hessian);
 	}
 
