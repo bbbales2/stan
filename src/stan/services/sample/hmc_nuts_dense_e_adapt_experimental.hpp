@@ -46,6 +46,7 @@ namespace stan {
        * @param[in] init_buffer width of initial fast adaptation interval
        * @param[in] term_buffer width of final fast adaptation interval
        * @param[in] window initial width of slow adaptation interval
+       * @param[in] adapt_experimental number of eigenvectors to get from Lanczos iterations
        * @param[in,out] interrupt Callback for interrupts
        * @param[in,out] logger Logger for messages
        * @param[in,out] init_writer Writer callback for unconstrained inits
@@ -55,20 +56,21 @@ namespace stan {
        */
       template <class Model>
       int hmc_nuts_dense_e_adapt_experimental(Model& model, stan::io::var_context& init,
-                                 stan::io::var_context& init_inv_metric,
-                                 unsigned int random_seed, unsigned int chain,
-                                 double init_radius, int num_warmup,
-                                 int num_samples, int num_thin,
-                                 bool save_warmup, int refresh, double stepsize,
-                                 double stepsize_jitter, int max_depth,
-                                 double delta, double gamma, double kappa,
-                                 double t0, unsigned int init_buffer,
-                                 unsigned int term_buffer, unsigned int window,
-                                 callbacks::interrupt& interrupt,
-                                 callbacks::logger& logger,
-                                 callbacks::writer& init_writer,
-                                 callbacks::writer& sample_writer,
-                                 callbacks::writer& diagnostic_writer) {
+					      stan::io::var_context& init_inv_metric,
+					      unsigned int random_seed, unsigned int chain,
+					      double init_radius, int num_warmup,
+					      int num_samples, int num_thin,
+					      bool save_warmup, int refresh, double stepsize,
+					      double stepsize_jitter, int max_depth,
+					      double delta, double gamma, double kappa,
+					      double t0, unsigned int init_buffer,
+					      unsigned int term_buffer, unsigned int window,
+					      int adapt_experimental,
+					      callbacks::interrupt& interrupt,
+					      callbacks::logger& logger,
+					      callbacks::writer& init_writer,
+					      callbacks::writer& sample_writer,
+					      callbacks::writer& diagnostic_writer) {
         boost::ecuyer1988 rng = util::create_rng(random_seed, chain);
 
         std::vector<int> disc_vector;
@@ -87,7 +89,7 @@ namespace stan {
         }
 
         stan::mcmc::adapt_experimental_dense_e_nuts<Model, boost::ecuyer1988>
-          sampler(model, rng);
+          sampler(model, adapt_experimental, rng);
 
         sampler.set_metric(inv_metric);
 
@@ -137,6 +139,7 @@ namespace stan {
        * @param[in] init_buffer width of initial fast adaptation interval
        * @param[in] term_buffer width of final fast adaptation interval
        * @param[in] window initial width of slow adaptation interval
+       * @param[in] adapt_experimental number of eigenvectors to get from Lanczos iterations
        * @param[in,out] interrupt Callback for interrupts
        * @param[in,out] logger Logger for messages
        * @param[in,out] init_writer Writer callback for unconstrained inits
@@ -154,6 +157,7 @@ namespace stan {
                                  double delta, double gamma, double kappa,
                                  double t0, unsigned int init_buffer,
                                  unsigned int term_buffer, unsigned int window,
+					      int adapt_experimental, 
                                  callbacks::interrupt& interrupt,
                                  callbacks::logger& logger,
                                  callbacks::writer& init_writer,
@@ -170,6 +174,7 @@ namespace stan {
                                       stepsize, stepsize_jitter, max_depth,
                                       delta, gamma, kappa, t0,
                                       init_buffer, term_buffer, window,
+						   adapt_experimental,
                                       interrupt, logger,
                                       init_writer, sample_writer,
                                       diagnostic_writer);
