@@ -33,16 +33,15 @@ namespace stan {
         if (end_adaptation_window()) {
           compute_next_window();
 
-	  estimator_.sample_covariance(covar);
+	  /*estimator_.sample_covariance(covar);
 
           double n = static_cast<double>(estimator_.num_samples());
           covar = (n / (n + 5.0)) * covar
             + 1e-3 * (5.0 / (n + 5.0))
             * Eigen::MatrixXd::Identity(covar.rows(), covar.cols());
 
-	  estimator_.restart();
+	  estimator_.restart();*/
 	  
-	  /*
 	  Eigen::VectorXd var;
           estimator_.sample_variance(var);
 
@@ -51,8 +50,15 @@ namespace stan {
                 + 1e-3 * (5.0 / (n + 5.0)) * Eigen::VectorXd::Ones(var.size());
 
 	  estimator_.restart();
-          */
 
+	  Eigen::MatrixXd L = var.array().sqrt().matrix().asDiagonal();//covar.llt().matrixL()
+	  //Eigen::MatrixXd Linv = var.array().inverse().sqrt().matrix().asDiagonal();
+
+	  //std::cout << L << std::endl;
+	  //std::cout << "**" << std::endl;
+	  //std::cout << Linv << std::endl;
+	  //std::cout << "**" << std::endl;
+	  
           //std::cout << adapt_window_counter_ << std::endl;
 
 	  auto Ax = [&](const Eigen::VectorXd& x) {
@@ -62,10 +68,10 @@ namespace stan {
 	    Eigen::VectorXd Ax;
 	    //stan::math::hessian_times_vector(log_prob_wrapper_covar<Model>(model), q, x, lp, Ax);
 	    double dx = 1e-5;
-	    Eigen::VectorXd dr = x * (dx / x.norm());
+	    Eigen::VectorXd dr = L * x * dx;
 	    stan::math::gradient(log_prob_wrapper_covar<Model>(model), q + dr / 2.0, lp, grad1);
 	    stan::math::gradient(log_prob_wrapper_covar<Model>(model), q - dr / 2.0, lp, grad2);
-	    Ax = (grad1 - grad2) / dx;
+	    Ax = L.transpose() * (grad1 - grad2) / dx;
 	    return Ax;
 	  };
   
@@ -103,12 +109,12 @@ namespace stan {
 
           Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> decomp1(T);
 	  
-	  double lp;
+	  /*double lp;
 	  Eigen::VectorXd grad;
 	  Eigen::MatrixXd hessian;
 	  stan::math::hessian(log_prob_wrapper_covar<Model>(model), q, lp, grad, hessian);
 	  
-          Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> decomp2(hessian);
+          Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> decomp2(L.transpose() * hessian * L);*/
 
 	  //std::cout << "Approx: " << decomp1.eigenvalues()(0) << std::endl;
 	  //std::cout << "Exact: " << decomp2.eigenvalues()(0) << std::endl;
@@ -139,6 +145,8 @@ namespace stan {
 
 	  double etail = decomp1.eigenvalues()(K);
 
+	  //std::cout << etail << std::endl;
+	  
 	  Eigen::LLT< Eigen::MatrixXd > LLT = covar.llt();
 	  
 	  Eigen::VectorXd es2 = Eigen::VectorXd::Zero(N);
@@ -146,20 +154,21 @@ namespace stan {
 	    if(i < K) {
 	      es2(i) = es(i);
 	    } else {
-	      es2(i) = -(V.block(0, i, N, 1).transpose() * LLT.solve(V.block(0, i, N, 1)))(0, 0);
+	      es2(i) = etail;////-1.0;-(V.block(0, i, N, 1).transpose() * LLT.solve(V.block(0, i, N, 1)))(0, 0);
 	    }
 	  }
 
-	  Eigen::MatrixXd A = V * es2.asDiagonal() * V.transpose();
-	  Eigen::MatrixXd Ainv = V * es2.array().inverse().matrix().asDiagonal() * V.transpose();
+	  //Eigen::MatrixXd A = L.transpose() * V * es2.asDiagonal() * V.transpose() * L;
+	  //Eigen::MatrixXd Ainv = Linv * V * es2.array().inverse().matrix().asDiagonal() * V.transpose() * Linv.transpose();
+	  Eigen::MatrixXd Ainv = L * V * es2.array().inverse().matrix().asDiagonal() * V.transpose() * L.transpose();
 
 	  /*std::cout << A << std::endl;
 	  std::cout << "----" << std::endl;
 	  std::cout << hessian << std::endl;
 	  std::cout << "----****" << std::endl;*/
 
-	  /*std::cout << Ainv * hessian << std::endl;
-	    std::cout << "----!!!!" << std::endl;*/
+	  //std::cout << Ainv * hessian << std::endl;
+	  //std::cout << "----!!!!" << std::endl;
 
 	  /*std::cout << -A.inverse() << std::endl;
 	  std::cout << "----" << std::endl;
@@ -184,7 +193,7 @@ namespace stan {
       }
 
     protected:
-      stan::math::welford_covar_estimator estimator_;
+      stan::math::welford_var_estimator estimator_;
       int K_;
     };
 
