@@ -16,7 +16,7 @@ namespace stan {
         ps_point(n),
         alpha(1.0),
         hessian(Eigen::MatrixXd::Identity(n, n)),
-        eigen_deco(n),
+        eigen_deco(hessian),
         log_det_metric(0),
         softabs_lambda(Eigen::VectorXd::Zero(n)),
         softabs_lambda_inv(Eigen::VectorXd::Zero(n)),

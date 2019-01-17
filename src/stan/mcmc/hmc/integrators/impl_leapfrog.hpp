@@ -28,19 +28,39 @@ namespace stan {
                     double epsilon,
                     callbacks::logger& logger) {
         // hat{T} = dT/dp * d/dq
-        Eigen::VectorXd q_init = z.q + 0.5 * epsilon * hamiltonian.dtau_dp(z);
-        Eigen::VectorXd delta_q(z.q.size());
+	for(int m = 0; m < 4; m++) {
+	  typename Hamiltonian::PointType wz = z;
+	  double inner_epsilon = epsilon * std::pow(0.5, m);
+	  try {
+	    Eigen::VectorXd q_init = wz.q + 0.5 * inner_epsilon * hamiltonian.dtau_dp(wz);
+	    Eigen::VectorXd delta_q(wz.q.size());
+	    
+	    for (int i = 0; i <= m; ++i) {
+	      for (int n = 0; n < this->max_num_fixed_point_; ++n) {
+		delta_q = wz.q;
+		wz.q.noalias() = q_init + 0.5 * inner_epsilon * hamiltonian.dtau_dp(wz);
+		hamiltonian.update_metric(wz, logger);
+		
+		delta_q -= wz.q;
+		if (delta_q.cwiseAbs().maxCoeff() < this->fixed_point_threshold_)
+		  break;
+	      }
 
-        for (int n = 0; n < this->max_num_fixed_point_; ++n) {
-          delta_q = z.q;
-          z.q.noalias() = q_init + 0.5 * epsilon * hamiltonian.dtau_dp(z);
-          hamiltonian.update_metric(z, logger);
+	      std::cout << "integrated to: " << (i + 1) * inner_epsilon << std::endl;
+	    }
 
-          delta_q -= z.q;
-          if (delta_q.cwiseAbs().maxCoeff() < this->fixed_point_threshold_)
-            break;
-        }
-        hamiltonian.update_gradients(z, logger);
+	    z = wz;
+
+	    break;
+	  } catch (...) {
+	    std::cout << "inner_epsilon " << inner_epsilon << " failed" << std::endl;
+	    if(m == 3) {
+	      throw;
+	    }
+	  }
+	}
+	
+	hamiltonian.update_gradients(z, logger);
       }
 
       void end_update_p(typename Hamiltonian::PointType& z,

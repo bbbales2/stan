@@ -26,9 +26,10 @@ namespace stan {
           = softabs_nuts<Model, BaseRNG>::transition(init_sample,
                                                      logger);
 
-        if (this->adapt_flag_)
+        if (this->adapt_flag_) {
           this->stepsize_adaptation_.learn_stepsize(this->nom_epsilon_,
                                                     s.accept_stat());
+	}
 
         return s;
       }

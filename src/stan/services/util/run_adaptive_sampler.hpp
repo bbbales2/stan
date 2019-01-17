@@ -51,11 +51,11 @@ namespace stan {
         try {
           sampler.z().q = cont_params;
           sampler.init_stepsize(logger);
-        } catch (const std::exception& e) {
+	} catch (const std::exception& e) {
           logger.info("Exception initializing step size.");
           logger.info(e.what());
           return;
-        }
+	}
 
         services::util::mcmc_writer
           writer(sample_writer, diagnostic_writer, logger);
