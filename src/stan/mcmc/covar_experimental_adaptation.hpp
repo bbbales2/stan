@@ -22,11 +22,42 @@ namespace stan {
     class covar_experimental_adaptation: public windowed_adaptation {
     public:
       explicit covar_experimental_adaptation(int n, int adapt_experimental)
-        : windowed_adaptation("covariance"), estimator_(n), K_(adapt_experimental) {}
+        : windowed_adaptation("covariance"), estimator_(n),
+	  K_(adapt_experimental),
+	  inv_metric_L(n, n),
+	  min_stepsize(1.0),
+	  initial_window(true) {
+	for(int i = 0; i < n; i++) {
+	  inv_metric_L(i, i) = 1.0;
+	}
+      }
 
       template<typename Model>
       bool learn_covariance(const Model& model, Eigen::MatrixXd& covar, const Eigen::VectorXd& q) {
-        if (adaptation_window()) {
+	auto Ax = [&](const Eigen::MatrixXd& L, const Eigen::VectorXd& x) {
+	  double lp;
+	  Eigen::VectorXd grad1;
+	  Eigen::VectorXd grad2;
+	  Eigen::VectorXd Ax;
+	  //stan::math::hessian_times_vector(log_prob_wrapper_covar<Model>(model), q, x, lp, Ax);
+	  double dx = 1e-5;
+	  Eigen::VectorXd dr = L * x * dx;
+	  stan::math::gradient(log_prob_wrapper_covar<Model>(model), q + dr / 2.0, lp, grad1);
+	  stan::math::gradient(log_prob_wrapper_covar<Model>(model), q - dr / 2.0, lp, grad2);
+	  Ax = L.transpose() * (grad1 - grad2) / dx;
+	  return Ax;
+	};
+
+	/*Eigen::VectorXd r = Eigen::VectorXd::Random(q.size());
+	double timestep = 0.0;
+	r = r / r.norm();
+	for(int i = 0; i < 5; i++) {
+	  Eigen::VectorXd rr = Ax(inv_metric_L, r);
+	  timestep = 1 / sqrt(-rr.transpose().dot(r) / r.norm());
+	  r = rr / rr.norm();
+	}*/
+	
+	if (adaptation_window()) {
           estimator_.add_sample(q);
 	}
 
@@ -59,21 +90,7 @@ namespace stan {
 	  //std::cout << Linv << std::endl;
 	  //std::cout << "**" << std::endl;
 	  
-          //std::cout << adapt_window_counter_ << std::endl;
-
-	  auto Ax = [&](const Eigen::VectorXd& x) {
-	    double lp;
-	    Eigen::VectorXd grad1;
-	    Eigen::VectorXd grad2;
-	    Eigen::VectorXd Ax;
-	    //stan::math::hessian_times_vector(log_prob_wrapper_covar<Model>(model), q, x, lp, Ax);
-	    double dx = 1e-5;
-	    Eigen::VectorXd dr = L * x * dx;
-	    stan::math::gradient(log_prob_wrapper_covar<Model>(model), q + dr / 2.0, lp, grad1);
-	    stan::math::gradient(log_prob_wrapper_covar<Model>(model), q - dr / 2.0, lp, grad2);
-	    Ax = L.transpose() * (grad1 - grad2) / dx;
-	    return Ax;
-	  };
+          std::cout << adapt_window_counter_ << std::endl;
   
 	  int N = q.size();
 	  int M = (q.size() < 100) ? q.size() : 100;
@@ -85,13 +102,13 @@ namespace stan {
 	  Eigen::VectorXd r = Eigen::VectorXd::Random(N);
 	  vs.block(0, 0, N, 1) = r / r.norm();
 
-	  r = Ax(vs.block(0, 0, N, 1));
+	  r = Ax(L, vs.block(0, 0, N, 1));
 	  a(0) = (vs.block(0, 0, N, 1).transpose() * r)(0, 0);
 	  r = r - a(0) * vs.block(0, 0, N, 1);
 	  b(0) = r.norm();
 	  for(int j = 1; j < M; j++) {
 	    vs.block(0, j, N, 1) = r / b(j - 1);
-	    r = Ax(vs.block(0, j, N, 1));
+	    r = Ax(L, vs.block(0, j, N, 1));
 	    r = r - vs.block(0, j - 1, N, 1) * b(j - 1);
 	    a(j) = (vs.block(0, j, N, 1).transpose() * r)(0, 0);
 	    r = r - vs.block(0, j, N, 1) * a(j);
@@ -134,10 +151,10 @@ namespace stan {
 	  V.block(0, 0, N, K) = vs2;
 	  V.block(0, K, N, N - K) = stan::math::qr_thin_Q(Vnull);
 
-	  //for(int i = 0; i < K; i++) {
-	  //  std::cout << std::setprecision(3) << es(i) << " : " << vs2.block(0, i, N, 1).transpose() << std::endl;
-	  //}
-	  //std::cout << "----" << std::endl;
+	  /*for(int i = 0; i < K; i++) {
+	    std::cout << std::setprecision(3) << es(i) << " : " << vs2.block(0, i, 4, 1).transpose() << std::endl;
+	  }
+	  std::cout << "----" << std::endl;*/
 
 	  /*std::cout << (V.transpose() * V).block(0, 0, 5, 5) << std::endl;
 	  std::cout << (V.transpose() * V).diagonal().transpose() << std::endl;
@@ -178,6 +195,8 @@ namespace stan {
 	  std::cout << "----" << std::endl;
 	  std::cout << covar << std::endl;
 	  std::cout << "----xxxx" << std::endl;*/
+
+	  inv_metric_L = (-Ainv).llt().matrixL();
 	  
           for (int i = 0; i < covar.size(); ++i) {
             covar(i) = -Ainv(i);
@@ -195,6 +214,7 @@ namespace stan {
     protected:
       stan::math::welford_var_estimator estimator_;
       int K_;
+      Eigen::MatrixXd inv_metric_L;
     };
 
   }  // mcmc
