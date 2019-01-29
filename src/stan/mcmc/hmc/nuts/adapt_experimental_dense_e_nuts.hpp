@@ -18,9 +18,11 @@ namespace stan {
     protected:
       const Model& model_;
     public:
-      adapt_experimental_dense_e_nuts(const Model& model, int adapt_experimental, BaseRNG& rng)
+      adapt_experimental_dense_e_nuts(const Model& model, int lanczos_iterations,
+				      int approximation_rank, bool endpoint_only, BaseRNG& rng)
         : model_(model), dense_e_nuts<Model, BaseRNG>(model, rng),
-        stepsize_covar_experimental_adapter(model.num_params_r(), adapt_experimental) {}
+        stepsize_covar_experimental_adapter(model.num_params_r(), lanczos_iterations,
+					    approximation_rank, endpoint_only) {}
 
       ~adapt_experimental_dense_e_nuts() {}
 

@@ -65,7 +65,8 @@ namespace stan {
 					      double delta, double gamma, double kappa,
 					      double t0, unsigned int init_buffer,
 					      unsigned int term_buffer, unsigned int window,
-					      int adapt_experimental,
+					      int lanczos_iterations, int approximation_rank,
+					      bool endpoint_only,
 					      callbacks::interrupt& interrupt,
 					      callbacks::logger& logger,
 					      callbacks::writer& init_writer,
@@ -89,7 +90,8 @@ namespace stan {
         }
 
         stan::mcmc::adapt_experimental_dense_e_nuts<Model, boost::ecuyer1988>
-          sampler(model, adapt_experimental, rng);
+          sampler(model, lanczos_iterations, approximation_rank,
+		  endpoint_only, rng);
 
         sampler.set_metric(inv_metric);
 
@@ -149,35 +151,37 @@ namespace stan {
        */
       template <class Model>
       int hmc_nuts_dense_e_adapt_experimental(Model& model, stan::io::var_context& init,
-                                 unsigned int random_seed, unsigned int chain,
-                                 double init_radius, int num_warmup,
-                                 int num_samples, int num_thin,
-                                 bool save_warmup, int refresh, double stepsize,
-                                 double stepsize_jitter, int max_depth,
-                                 double delta, double gamma, double kappa,
-                                 double t0, unsigned int init_buffer,
-                                 unsigned int term_buffer, unsigned int window,
-					      int adapt_experimental, 
-                                 callbacks::interrupt& interrupt,
-                                 callbacks::logger& logger,
-                                 callbacks::writer& init_writer,
-                                 callbacks::writer& sample_writer,
-                                 callbacks::writer& diagnostic_writer) {
+					      unsigned int random_seed, unsigned int chain,
+					      double init_radius, int num_warmup,
+					      int num_samples, int num_thin,
+					      bool save_warmup, int refresh, double stepsize,
+					      double stepsize_jitter, int max_depth,
+					      double delta, double gamma, double kappa,
+					      double t0, unsigned int init_buffer,
+					      unsigned int term_buffer, unsigned int window,
+					      int lanczos_iterations, int approximation_rank,
+					      bool endpoint_only,
+					      callbacks::interrupt& interrupt,
+					      callbacks::logger& logger,
+					      callbacks::writer& init_writer,
+					      callbacks::writer& sample_writer,
+					      callbacks::writer& diagnostic_writer) {
         stan::io::dump dmp =
           util::create_unit_e_dense_inv_metric(model.num_params_r());
         stan::io::var_context& unit_e_metric = dmp;
 
         return hmc_nuts_dense_e_adapt_experimental(model, init, unit_e_metric,
-                                      random_seed, chain, init_radius,
-                                      num_warmup, num_samples, num_thin,
-                                      save_warmup, refresh,
-                                      stepsize, stepsize_jitter, max_depth,
-                                      delta, gamma, kappa, t0,
-                                      init_buffer, term_buffer, window,
-						   adapt_experimental,
-                                      interrupt, logger,
-                                      init_writer, sample_writer,
-                                      diagnostic_writer);
+						   random_seed, chain, init_radius,
+						   num_warmup, num_samples, num_thin,
+						   save_warmup, refresh,
+						   stepsize, stepsize_jitter, max_depth,
+						   delta, gamma, kappa, t0,
+						   init_buffer, term_buffer, window,
+						   lanczos_iterations, approximation_rank,
+						   endpoint_only,
+						   interrupt, logger,
+						   init_writer, sample_writer,
+						   diagnostic_writer);
       }
 
     }
