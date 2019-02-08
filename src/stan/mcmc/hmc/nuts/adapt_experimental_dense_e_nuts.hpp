@@ -28,21 +28,32 @@ namespace stan {
 
       sample
       transition(sample& init_sample, callbacks::logger& logger) {
+	/*if (this->adapt_flag_) {
+	  this->nom_epsilon_ = this->covar_adaptation_.learn_stepsize(model_,
+								      this->z_.inv_e_metric_,
+								      this->z_.q) / 2.0;
+								      }*/
+
         sample s = dense_e_nuts<Model, BaseRNG>::transition(init_sample,
                                                             logger);
+
+	//std::cout << "divergent: " << this->divergent_ << std::endl;
 
         if (this->adapt_flag_) {
           this->stepsize_adaptation_.learn_stepsize(this->nom_epsilon_,
                                                     s.accept_stat());
+	  //std::cout << "nom_epsilon_: " << this->nom_epsilon_ << std::endl;
 
+	  double stability_limit = 0.0;
           bool update = this->covar_adaptation_.learn_covariance(model_,
-                                                this->z_.inv_e_metric_,
-                                                this->z_.q);
+								 this->z_.inv_e_metric_,
+								 this->z_.q,
+								 stability_limit);
 
           if (update) {
             this->init_stepsize(logger);
-
-            this->stepsize_adaptation_.set_mu(log(10 * this->nom_epsilon_));
+	    //10 * this->nom_epsilon_
+            this->stepsize_adaptation_.set_mu(log(stability_limit));
             this->stepsize_adaptation_.restart();
           }
         }
