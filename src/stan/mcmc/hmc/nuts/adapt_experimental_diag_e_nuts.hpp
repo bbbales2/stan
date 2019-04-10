@@ -18,9 +18,9 @@ namespace stan {
     public:
       const Model& model_;
 
-      adapt_experimental_diag_e_nuts(const Model& model, BaseRNG& rng)
+      adapt_experimental_diag_e_nuts(const Model& model, int which_adaptation, BaseRNG& rng)
         : model_(model), diag_e_nuts<Model, BaseRNG>(model, rng),
-        stepsize_var_experimental_adapter(model.num_params_r()) {}
+        stepsize_var_experimental_adapter(model.num_params_r(), which_adaptation) {}
 
       ~adapt_experimental_diag_e_nuts() {}
 
@@ -33,14 +33,16 @@ namespace stan {
           this->stepsize_adaptation_.learn_stepsize(this->nom_epsilon_,
                                                     s.accept_stat());
 
+	  double stability_limit = 0.0;
           bool update = this->var_adaptation_.learn_variance(model_,
-                                              this->z_.inv_e_metric_,
-                                              this->z_.q);
+							     this->z_.inv_e_metric_,
+							     this->z_.q,
+							     stability_limit);
 
           if (update) {
             this->init_stepsize(logger);
 
-            this->stepsize_adaptation_.set_mu(log(10 * this->nom_epsilon_));
+            this->stepsize_adaptation_.set_mu(log(stability_limit));
             this->stepsize_adaptation_.restart();
           }
         }

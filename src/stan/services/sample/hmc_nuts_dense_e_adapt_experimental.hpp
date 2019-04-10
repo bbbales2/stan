@@ -65,8 +65,7 @@ namespace stan {
 					      double delta, double gamma, double kappa,
 					      double t0, unsigned int init_buffer,
 					      unsigned int term_buffer, unsigned int window,
-					      int lanczos_iterations, int approximation_rank,
-					      bool endpoint_only,
+					      int which_adaptation,
 					      callbacks::interrupt& interrupt,
 					      callbacks::logger& logger,
 					      callbacks::writer& init_writer,
@@ -90,8 +89,7 @@ namespace stan {
         }
 
         stan::mcmc::adapt_experimental_dense_e_nuts<Model, boost::ecuyer1988>
-          sampler(model, lanczos_iterations, approximation_rank,
-		  endpoint_only, rng);
+          sampler(model, which_adaptation, rng);
 
         sampler.set_metric(inv_metric);
 
@@ -159,8 +157,7 @@ namespace stan {
 					      double delta, double gamma, double kappa,
 					      double t0, unsigned int init_buffer,
 					      unsigned int term_buffer, unsigned int window,
-					      int lanczos_iterations, int approximation_rank,
-					      bool endpoint_only,
+					      int which_adaptation,
 					      callbacks::interrupt& interrupt,
 					      callbacks::logger& logger,
 					      callbacks::writer& init_writer,
@@ -177,8 +174,7 @@ namespace stan {
 						   stepsize, stepsize_jitter, max_depth,
 						   delta, gamma, kappa, t0,
 						   init_buffer, term_buffer, window,
-						   lanczos_iterations, approximation_rank,
-						   endpoint_only,
+						   which_adaptation,
 						   interrupt, logger,
 						   init_writer, sample_writer,
 						   diagnostic_writer);

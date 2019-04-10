@@ -12,9 +12,8 @@ namespace stan {
 
     class stepsize_covar_experimental_adapter: public base_adapter {
     public:
-      explicit stepsize_covar_experimental_adapter(int n, int lanczos_iterations, int approximation_rank,
-						   bool endpoint_only)
-        : covar_adaptation_(n, lanczos_iterations, approximation_rank, endpoint_only) {
+      explicit stepsize_covar_experimental_adapter(int n, int which_adaptation)
+        : covar_adaptation_(n, which_adaptation) {
       }
 
       stepsize_adaptation& get_stepsize_adaptation() {
