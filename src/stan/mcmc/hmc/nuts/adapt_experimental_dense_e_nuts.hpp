@@ -42,7 +42,7 @@ namespace stan {
                                                     s.accept_stat());
 	  //std::cout << "nom_epsilon_: " << this->nom_epsilon_ << std::endl;
 
-	  double stability_limit = 0.0;
+	  double stability_limit = 10 * this->nom_epsilon_;
           bool update = this->covar_adaptation_.learn_covariance(model_,
 								 this->z_.inv_e_metric_,
 								 this->z_.q,
@@ -50,7 +50,6 @@ namespace stan {
 
           if (update) {
             this->init_stepsize(logger);
-	    //10 * this->nom_epsilon_
             this->stepsize_adaptation_.set_mu(log(stability_limit));
             this->stepsize_adaptation_.restart();
           }

@@ -284,121 +284,129 @@ namespace stan {
 	  for(int i = 0; i < qs_.size(); i++)
 	    Y.block(0, i, N, 1) = qs_[idxs[i]];
 
-	  std::string best_metric;
-	  for(auto state : { "selection", "refinement" }) {
-	    Eigen::MatrixXd Ytrain;
-	    Eigen::MatrixXd Ytest;
+	  try {
+	    std::string best_metric;
+	    for(auto state : { "selection", "refinement" }) {
+	      Eigen::MatrixXd Ytrain;
+	      Eigen::MatrixXd Ytest;
 
-	    if(state == "selection") {
-	      int Ntest;
-	      Ntest = int(0.2 * Y.cols());
-	      if(Ntest < 5) {
-		Ntest = 5;
-	      }
-
-	      if(Y.cols() < 10) {
-		throw std::runtime_error("Each warmup stage must have at least 10 samples");
-	      }
-	      
-	      std::cout << "train: " << Y.cols() - Ntest << ", test: " << Ntest << std::endl;
-	      Ytrain = Y.block(0, 0, N, Y.cols() - Ntest);
-	      Ytest = Y.block(0, Ytrain.cols(), N, Ntest);
-	    } else {
-	      Ytrain = Y;
-	    }
-
-	    Eigen::MatrixXd cov = covariance(Ytrain);
-	    Eigen::MatrixXd cov_test = covariance(Ytest);
-
-	    Eigen::MatrixXd D = cov.diagonal().array().sqrt().matrix().asDiagonal();
-
-	    std::map<std::string, MultiNormalInvWishart> inv_metrics;
-	    inv_metrics["diagonal"] = diagonal_metric(Ytrain.cols(), cov);
-	    inv_metrics["dense"] = dense_metric(Ytrain.cols(), cov);
-	    inv_metrics["rank 1"] = low_rank_metric(1, model, D, Ytrain.block(0, Ytrain.cols() - 1, N, 1));
-	    if(N > 2)
-	      inv_metrics["rank 2"] = low_rank_metric(2, model, D, Ytrain.block(0, Ytrain.cols() - 1, N, 1));
-	    if(N > 4)
-	      inv_metrics["rank 4"] = low_rank_metric(4, model, D, Ytrain.block(0, Ytrain.cols() - 1, N, 1));
-	    if(N > 8)
-	      inv_metrics["rank 8"] = low_rank_metric(8, model, D, Ytrain.block(0, Ytrain.cols() - 1, N, 1));
-
-	    inv_metrics["rank 1 + wishart"] = inv_metrics["rank 1"];
-	    inv_metrics["rank 1 + wishart"].update(Ytrain);
-
-	    if(N > 2) {
-	      inv_metrics["rank 2 + wishart"] = inv_metrics["rank 2"];
-	      inv_metrics["rank 2 + wishart"].update(Ytrain);
-	    }
-	    
-	    if(N > 4) {
-	      inv_metrics["rank 4 + wishart"] = inv_metrics["rank 4"];
-	      inv_metrics["rank 4 + wishart"].update(Ytrain);
-	    }
-	    
-	    if(N > 8) {
-	      inv_metrics["rank 8 + wishart"] = inv_metrics["rank 8"];
-	      inv_metrics["rank 8 + wishart"].update(Ytrain);
-	    }
-
-	    if(state == "selection") {
-	      double best_score = -1.0;
-
-	      int which = 1; // which == 0 corresponds to switching adaptation
-	      for(const auto& it : inv_metrics) {
-		double low_eigenvalue = bottom_eigenvalue_estimate(it.second.mean(), cov_test);
-		Eigen::VectorXd c = Eigen::VectorXd::Zero(std::min(5, int(Ytest.cols())));
-		for(int i = 0; i < c.size(); i++) {
-
-		  /*double lp;
-		    Eigen::VectorXd grad;
-		    Eigen::MatrixXd hessian;
-		    stan::math::hessian(log_prob_wrapper_covar<Model>(model), Ytest.block(0, i, N, 1), lp, grad, hessian);
-		    
-		    std::cout << "q: " << q.transpose() << std::endl;
-		    std::cout << hessian << std::endl;
-		    std::cout << "-----" << std::endl;*/
-
-		  double high_eigenvalue = top_eigenvalue(model, it.second.mean(), Ytest.block(0, i, N, 1));
-		  c(i) = std::sqrt(high_eigenvalue / low_eigenvalue);
-		}
-		std::sort(c.data(), c.data() + c.size());
-		double min = c.minCoeff();
-		double max = c.maxCoeff();
-		double median = c(c.size() / 2);
-	      
-		std::cout << "adapt: " << adapt_window_counter_ << ", which: " << which << ", min: " << min << ", median: " << median << ", max: " << max << ", " << it.first << std::endl;
-
-		if(best_score < 0.0 || max < best_score) {
-		  best_score = max;
-		  best_metric = it.first;
+	      if(state == "selection") {
+		int Ntest;
+		Ntest = int(0.2 * Y.cols());
+		if(Ntest < 5) {
+		  Ntest = 5;
 		}
 
-		which += 1;
-	      }
-	    } else {
-	      if(which_adaptation_ == 0) {
-		last_metric_ = inv_metrics[best_metric];
-		std::cout << "picked: " << adapt_window_counter_ << ", name: " << best_metric << std::endl;
+		if(Y.cols() < 10) {
+		  throw std::runtime_error("Each warmup stage must have at least 10 samples");
+		}
+	      
+		std::cout << "train: " << Y.cols() - Ntest << ", test: " << Ntest << std::endl;
+		Ytrain = Y.block(0, 0, N, Y.cols() - Ntest);
+		Ytest = Y.block(0, Ytrain.cols(), N, Ntest);
 	      } else {
-		if(which_adaptation_ - 1 < inv_metrics.size()) {
-		  auto it = inv_metrics.begin();
-		  std::advance(it, which_adaptation_ - 1);
-		  last_metric_ = it->second;
-		  std::cout << "picked: " << adapt_window_counter_ << ", name: " << it->first << std::endl;
+		Ytrain = Y;
+	      }
+
+	      Eigen::MatrixXd cov = covariance(Ytrain);
+	      Eigen::MatrixXd cov_test = covariance(Ytest);
+
+	      Eigen::MatrixXd D = cov.diagonal().array().sqrt().matrix().asDiagonal();
+
+	      std::map<std::string, MultiNormalInvWishart> inv_metrics;
+	      inv_metrics["diagonal"] = diagonal_metric(Ytrain.cols(), cov);
+	      inv_metrics["dense"] = dense_metric(Ytrain.cols(), cov);
+	      inv_metrics["rank 1"] = low_rank_metric(1, model, D, Ytrain.block(0, Ytrain.cols() - 1, N, 1));
+	      if(N > 2)
+		inv_metrics["rank 2"] = low_rank_metric(2, model, D, Ytrain.block(0, Ytrain.cols() - 1, N, 1));
+	      if(N > 4)
+		inv_metrics["rank 4"] = low_rank_metric(4, model, D, Ytrain.block(0, Ytrain.cols() - 1, N, 1));
+	      if(N > 8)
+		inv_metrics["rank 8"] = low_rank_metric(8, model, D, Ytrain.block(0, Ytrain.cols() - 1, N, 1));
+
+	      inv_metrics["rank 1 + wishart"] = inv_metrics["rank 1"];
+	      inv_metrics["rank 1 + wishart"].update(Ytrain);
+
+	      if(N > 2) {
+		inv_metrics["rank 2 + wishart"] = inv_metrics["rank 2"];
+		inv_metrics["rank 2 + wishart"].update(Ytrain);
+	      }
+	    
+	      if(N > 4) {
+		inv_metrics["rank 4 + wishart"] = inv_metrics["rank 4"];
+		inv_metrics["rank 4 + wishart"].update(Ytrain);
+	      }
+	    
+	      if(N > 8) {
+		inv_metrics["rank 8 + wishart"] = inv_metrics["rank 8"];
+		inv_metrics["rank 8 + wishart"].update(Ytrain);
+	      }
+
+	      if(state == "selection") {
+		double best_score = -1.0;
+
+		int which = 1; // which == 0 corresponds to switching adaptation
+		for(const auto& it : inv_metrics) {
+		  double low_eigenvalue = bottom_eigenvalue_estimate(it.second.mean(), cov_test);
+		  Eigen::VectorXd c = Eigen::VectorXd::Zero(std::min(5, int(Ytest.cols())));
+		  for(int i = 0; i < c.size(); i++) {
+
+		    /*double lp;
+		      Eigen::VectorXd grad;
+		      Eigen::MatrixXd hessian;
+		      stan::math::hessian(log_prob_wrapper_covar<Model>(model), Ytest.block(0, i, N, 1), lp, grad, hessian);
+		    
+		      std::cout << "q: " << q.transpose() << std::endl;
+		      std::cout << hessian << std::endl;
+		      std::cout << "-----" << std::endl;*/
+
+		    double high_eigenvalue = top_eigenvalue(model, it.second.mean(), Ytest.block(0, i, N, 1));
+		    c(i) = std::sqrt(high_eigenvalue / low_eigenvalue);
+		  }
+		  std::sort(c.data(), c.data() + c.size());
+		  double min = c.minCoeff();
+		  double max = c.maxCoeff();
+		  double median = c(c.size() / 2);
+	      
+		  std::cout << "adapt: " << adapt_window_counter_ << ", which: " << which << ", min: " << min << ", median: " << median << ", max: " << max << ", " << it.first << std::endl;
+
+		  if(best_score < 0.0 || max < best_score) {
+		    best_score = max;
+		    best_metric = it.first;
+		  }
+
+		  which += 1;
+		}
+	      } else {
+		if(which_adaptation_ == 0) {
+		  last_metric_ = inv_metrics[best_metric];
+		  std::cout << "picked: " << adapt_window_counter_ << ", name: " << best_metric << std::endl;
 		} else {
-		  throw std::runtime_error("which_adaptation_ too high");
+		  if(which_adaptation_ - 1 < inv_metrics.size()) {
+		    auto it = inv_metrics.begin();
+		    std::advance(it, which_adaptation_ - 1);
+		    last_metric_ = it->second;
+		    std::cout << "picked: " << adapt_window_counter_ << ", name: " << it->first << std::endl;
+		  } else {
+		    throw std::runtime_error("which_adaptation_ too high");
+		  }
+		}
+
+		stability_limit = 1e300;
+		for(int i = 0; i < std::min(5, int(Y.cols())); i++) {
+		  stability_limit = std::min(stability_limit,
+					     2 / std::sqrt(std::abs(top_eigenvalue(model, last_metric_.mean(), Y.block(0, Y.cols() - i - 1, N, 1)))));
 		}
 	      }
-
-	      stability_limit = 1e300;
-	      for(int i = 0; i < std::min(5, int(Y.cols())); i++) {
-		stability_limit = std::min(stability_limit,
-					   2 / std::sqrt(std::abs(top_eigenvalue(model, last_metric_.mean(), Y.block(0, Y.cols() - i - 1, N, 1)))));
-	      }
 	    }
-	  }
 
+	    covar = last_metric_.mean();
+	  } catch(const std::exception& e) {
+	    std::cout << e.what() << std::endl;
+	    std::cout << "Exception while using experimental adaptation, falling back to diagonal" << std::endl;
+	    Eigen::MatrixXd cov = covariance(Y);
+	    covar = diagonal_metric(M, cov).mean();
+	  }
 
 	  /*std::cout << A << std::endl;
 	  std::cout << "----" << std::endl;
@@ -419,8 +427,6 @@ namespace stan {
 	  std::cout << "----xxxx" << std::endl;*/
 
 	  //std::cout << Ainv << std::endl;
-
-	  covar = last_metric_.mean();
 
           ++adapt_window_counter_;
 	  qs_.clear();
