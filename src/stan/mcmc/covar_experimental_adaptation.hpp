@@ -1,7 +1,7 @@
 #ifndef STAN_MCMC_COVAR_EXPERIMENTAL_ADAPTATION_HPP
 #define STAN_MCMC_COVAR_EXPERIMENTAL_ADAPTATION_HPP
 
-#include <stan/math/mix/mat.hpp>
+#include <stan/math/rev/mat.hpp>
 #include <stan/mcmc/windowed_adaptation.hpp>
 #include <vector>
 
@@ -163,7 +163,7 @@ namespace stan {
 
       Eigen::MatrixXd covariance(const Eigen::MatrixXd& Y) {
 	Eigen::MatrixXd centered = Y.colwise() - Y.rowwise().mean();
-	return centered * centered.transpose() / std::max(centered.rows() - 1.0, 1.0);
+	return centered * centered.transpose() / std::max(centered.cols() - 1.0, 1.0);
       }
 
       MultiNormalInvWishart diagonal_metric(int N,
@@ -252,15 +252,6 @@ namespace stan {
 	//std::cout << "bottom: " << eval << std::endl;
 
 	return eval;
-      }
-
-      template<typename Model>
-      Eigen::MatrixXd hessian(const Model& model, const Eigen::VectorXd& q) {
-	double lp;
-	Eigen::VectorXd grad;
-	Eigen::MatrixXd hessian_tmp;
-	stan::math::hessian(log_prob_wrapper_covar<Model>(model), q, lp, grad, hessian_tmp);
-	return hessian_tmp;
       }
 
       template<typename Model>
