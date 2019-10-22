@@ -3,7 +3,7 @@
 
 #include <stan/callbacks/logger.hpp>
 #include <stan/mcmc/stepsize_covar_experimental_adapter.hpp>
-#include <stan/mcmc/hmc/nuts/dense_e_nuts.hpp>
+#include <stan/mcmc/hmc/nuts/experimental_dense_e_nuts.hpp>
 
 namespace stan {
   namespace mcmc {
@@ -13,13 +13,13 @@ namespace stan {
      * dense metric and adaptive step size
      */
     template <class Model, class BaseRNG>
-    class adapt_experimental_dense_e_nuts : public dense_e_nuts<Model, BaseRNG>,
+    class adapt_experimental_dense_e_nuts : public experimental_dense_e_nuts<Model, BaseRNG>,
 					    public stepsize_covar_experimental_adapter {
     protected:
       const Model& model_;
     public:
       adapt_experimental_dense_e_nuts(const Model& model, int which_adaptation, BaseRNG& rng)
-        : model_(model), dense_e_nuts<Model, BaseRNG>(model, rng),
+        : model_(model), experimental_dense_e_nuts<Model, BaseRNG>(model, rng),
         stepsize_covar_experimental_adapter(model.num_params_r(), which_adaptation) {}
 
       ~adapt_experimental_dense_e_nuts() {}
@@ -32,8 +32,8 @@ namespace stan {
 								      this->z_.q) / 2.0;
 								      }*/
 
-        sample s = dense_e_nuts<Model, BaseRNG>::transition(init_sample,
-                                                            logger);
+        sample s = experimental_dense_e_nuts<Model, BaseRNG>::transition(init_sample,
+									 logger);
 
 	//std::cout << "divergent: " << this->divergent_ << std::endl;
 
@@ -43,6 +43,8 @@ namespace stan {
 	  //std::cout << "nom_epsilon_: " << this->nom_epsilon_ << std::endl;
 
 	  double stability_limit = 10 * this->nom_epsilon_;
+	  // this->z is a point -- implemented in
+	  //  stan/mcmc/hmc/hamiltonians/experimental_dense_e_point.hpp
           bool update = this->covar_adaptation_.learn_covariance(model_,
 								 this->z_.inv_e_metric_,
 								 this->z_.q,

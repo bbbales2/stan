@@ -166,6 +166,32 @@ namespace stan {
 	return centered * centered.transpose() / std::max(centered.cols() - 1.0, 1.0);
       }
 
+      Eigen::MatrixXd ledoit_wolf_2004(const Eigen::MatrixXd& Y) {
+	Eigen::MatrixXd centered = Y.colwise() - Y.rowwise().mean();
+	int Neff = std::max(centered.cols() - 1.0, 1.0);
+	Eigen::MatrixXd S = centered * centered.transpose() / Neff;
+
+	double mn = 0.0;
+	for(int i = 0; i < S.cols(); ++i)
+	  mn += S(i, i) / S.cols();
+
+	double d2 = (S - Eigen::MatrixXd::Identity(S.rows(), S.cols()) * mn).squaredNorm();
+
+	double b2bar = 0.0;
+	for(int k = 0; k < centered.cols(); ++k) {
+	  Eigen::MatrixXd outer = centered.block(0, k, centered.rows(), 1) * centered.block(0, k, centered.rows(), 1).transpose();
+	  b2bar += (outer - S).squaredNorm() / (Neff * Neff);
+	}
+
+	double b2 = std::min(b2bar, d2);
+
+	double a2 = d2 - b2;
+
+	Eigen::MatrixXd Sstar = Eigen::MatrixXd::Identity(S.rows(), S.cols()) * (b2 / d2) * mn + (a2 / d2) * S;
+	
+	return Sstar;
+      }
+
       MultiNormalInvWishart diagonal_metric(int N,
 				      const Eigen::MatrixXd& cov) {
 	Eigen::VectorXd var = cov.diagonal();
@@ -177,6 +203,10 @@ namespace stan {
 					 const Eigen::MatrixXd& cov) {
 	return MultiNormalInvWishart(N + 5, (N / (N + 5.0)) * cov +
 				     1e-3 * (5.0 / (N + 5.0)) * Eigen::MatrixXd::Identity(cov.rows(), cov.cols()));
+      }
+
+      MultiNormalInvWishart lw_2004_metric(const Eigen::MatrixXd& Y) {
+	return MultiNormalInvWishart(Y.cols(), ledoit_wolf_2004(Y));
       }
 
       template<typename Model>
@@ -263,8 +293,8 @@ namespace stan {
         if (end_adaptation_window()) {
           compute_next_window();
 
-	  int N = q.size();
-	  int M = qs_.size();
+	  int N = q.size(); // N parameters
+	  int M = qs_.size(); // M draws
 
 	  Eigen::MatrixXd Y = Eigen::MatrixXd::Zero(N, M);
 	  std::vector<int> idxs(M);
@@ -307,6 +337,7 @@ namespace stan {
 	      std::map<std::string, MultiNormalInvWishart> inv_metrics;
 	      inv_metrics["diagonal"] = diagonal_metric(Ytrain.cols(), cov);
 	      inv_metrics["dense"] = dense_metric(Ytrain.cols(), cov);
+	      inv_metrics["lw2004"] = lw_2004_metric(Ytrain);
 	      inv_metrics["rank 1"] = low_rank_metric(1, model, D, Ytrain.block(0, Ytrain.cols() - 1, N, 1));
 	      if(N > 2)
 		inv_metrics["rank 2"] = low_rank_metric(2, model, D, Ytrain.block(0, Ytrain.cols() - 1, N, 1));
