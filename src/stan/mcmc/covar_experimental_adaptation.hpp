@@ -205,8 +205,10 @@ namespace stan {
 				     1e-3 * (5.0 / (N + 5.0)) * Eigen::MatrixXd::Identity(cov.rows(), cov.cols()));
       }
 
-      MultiNormalInvWishart lw_2004_metric(const Eigen::MatrixXd& Y) {
-	return MultiNormalInvWishart(Y.cols(), ledoit_wolf_2004(Y));
+      MultiNormalInvWishart lw_2004_metric(const Eigen::MatrixXd& Y,
+					   const Eigen::MatrixXd& L,
+					   const Eigen::MatrixXd& Linv) {
+	return MultiNormalInvWishart(Y.cols(), L * ledoit_wolf_2004(Linv * Y) * L.transpose());
       }
 
       template<typename Model>
@@ -333,11 +335,14 @@ namespace stan {
 	      Eigen::MatrixXd cov_test = covariance(Ytest);
 
 	      Eigen::MatrixXd D = cov.diagonal().array().sqrt().matrix().asDiagonal();
+	      Eigen::MatrixXd Dinv = D.diagonal().array().inverse().matrix().asDiagonal();
+
+	      /*Eigen::MatrixXd cov_lw = D * ledoit_wolf_2004(Dinv * Ytrain) * D;*/
 
 	      std::map<std::string, MultiNormalInvWishart> inv_metrics;
 	      inv_metrics["diagonal"] = diagonal_metric(Ytrain.cols(), cov);
 	      inv_metrics["dense"] = dense_metric(Ytrain.cols(), cov);
-	      inv_metrics["lw2004"] = lw_2004_metric(Ytrain);
+	      inv_metrics["lw2004"] = lw_2004_metric(Ytrain, D, Dinv);
 	      inv_metrics["rank 1"] = low_rank_metric(1, model, D, Ytrain.block(0, Ytrain.cols() - 1, N, 1));
 	      if(N > 2)
 		inv_metrics["rank 2"] = low_rank_metric(2, model, D, Ytrain.block(0, Ytrain.cols() - 1, N, 1));
