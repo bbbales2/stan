@@ -336,8 +336,8 @@ namespace stan {
 
 	      Eigen::MatrixXd D = cov.diagonal().array().sqrt().matrix().asDiagonal();
 	      Eigen::MatrixXd Dinv = D.diagonal().array().inverse().matrix().asDiagonal();
-
-	      /*Eigen::MatrixXd cov_lw = D * ledoit_wolf_2004(Dinv * Ytrain) * D;*/
+	      
+	      Eigen::MatrixXd cov_test_lw = D * ledoit_wolf_2004(Dinv * Ytest) * D;
 
 	      std::map<std::string, MultiNormalInvWishart> inv_metrics;
 	      inv_metrics["diagonal"] = diagonal_metric(Ytrain.cols(), cov);
@@ -374,7 +374,7 @@ namespace stan {
 
 		int which = 1; // which == 0 corresponds to switching adaptation
 		for(const auto& it : inv_metrics) {
-		  double low_eigenvalue = bottom_eigenvalue_estimate(it.second.mean(), cov_test);
+		  double low_eigenvalue = bottom_eigenvalue_estimate(it.second.mean(), cov_test_lw);
 		  Eigen::VectorXd c = Eigen::VectorXd::Zero(std::min(5, int(Ytest.cols())));
 		  for(int i = 0; i < c.size(); i++) {
 
