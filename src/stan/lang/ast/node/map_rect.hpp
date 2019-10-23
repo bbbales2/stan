@@ -24,8 +24,8 @@ struct map_rect {
    *
    * @return the sequence of map_rect calls.
    */
-  static std::vector<std::pair<int, std::string>>& registered_calls() {
-    static std::vector<std::pair<int, std::string>> REGISTERED_CALLS_;
+  static std::vector<std::pair<int, std::string> >& registered_calls() {
+    static std::vector<std::pair<int, std::string> > REGISTERED_CALLS_;
     return REGISTERED_CALLS_;
   }
 
@@ -113,6 +113,6 @@ struct map_rect {
   void register_id();
 };
 
-}
-}
+}  // namespace lang
+}  // namespace stan
 #endif

@@ -4,8 +4,8 @@
 #include <string>
 #include <iostream>
 
-using stan::lang::block_var_type;
 using stan::lang::block_array_type;
+using stan::lang::block_var_type;
 using stan::lang::cholesky_factor_corr_block_type;
 using stan::lang::cholesky_factor_cov_block_type;
 using stan::lang::corr_matrix_block_type;
@@ -21,11 +21,11 @@ using stan::lang::simplex_block_type;
 using stan::lang::unit_vector_block_type;
 using stan::lang::vector_block_type;
 
+using stan::lang::double_literal;
 using stan::lang::expression;
 using stan::lang::int_literal;
-using stan::lang::double_literal;
+using stan::lang::offset_multiplier;
 using stan::lang::range;
-using stan::lang::locscale;
 using stan::lang::write_bare_expr_type;
 
 TEST(blockVarType, createDefault) {
@@ -109,7 +109,7 @@ TEST(blockVarType, createDoubleBounded) {
   double_block_type tDouble(r1);
   block_var_type x(tDouble);
   EXPECT_TRUE(x.has_def_bounds());
-  EXPECT_FALSE(x.has_def_locscale());
+  EXPECT_FALSE(x.has_def_offset_multiplier());
   EXPECT_TRUE(x.is_constrained());
   EXPECT_FALSE(x.is_array_type());
   EXPECT_FALSE(x.is_specialized());
@@ -128,7 +128,7 @@ TEST(blockVarType, createDoubleBounded2) {
   double_block_type tDouble(r1);
   block_var_type x(tDouble);
   EXPECT_TRUE(x.has_def_bounds());
-  EXPECT_FALSE(x.has_def_locscale());
+  EXPECT_FALSE(x.has_def_offset_multiplier());
   EXPECT_TRUE(x.is_constrained());
   EXPECT_FALSE(x.is_array_type());
   EXPECT_EQ(x.num_dims(), 0);
@@ -142,10 +142,10 @@ TEST(blockVarType, createDoubleBounded2) {
 }
 
 TEST(blockVarType, createDoubleLocScale) {
-  locscale r1(int_literal(-2), int_literal(2));
+  offset_multiplier r1(int_literal(-2), int_literal(2));
   double_block_type tDouble(r1);
   block_var_type x(tDouble);
-  EXPECT_TRUE(x.has_def_locscale());
+  EXPECT_TRUE(x.has_def_offset_multiplier());
   EXPECT_FALSE(x.has_def_bounds());
   EXPECT_FALSE(x.is_constrained());
   EXPECT_FALSE(x.is_array_type());
@@ -164,10 +164,10 @@ TEST(blockVarType, createDoubleLocScale) {
 }
 
 TEST(blockVarType, createDoubleLocScale2) {
-  locscale r1(double_literal(-0.1), double_literal(0.1));
+  offset_multiplier r1(double_literal(-0.1), double_literal(0.1));
   double_block_type tDouble(r1);
   block_var_type x(tDouble);
-  EXPECT_TRUE(x.has_def_locscale());
+  EXPECT_TRUE(x.has_def_offset_multiplier());
   EXPECT_FALSE(x.has_def_bounds());
   EXPECT_FALSE(x.is_constrained());
   EXPECT_FALSE(x.is_array_type());
@@ -203,7 +203,7 @@ TEST(blockVarType, createVectorBoundedSized) {
   vector_block_type tVector(r1, N);
   block_var_type x(tVector);
   EXPECT_TRUE(x.has_def_bounds());
-  EXPECT_FALSE(x.has_def_locscale());
+  EXPECT_FALSE(x.has_def_offset_multiplier());
   EXPECT_TRUE(x.is_constrained());
   EXPECT_TRUE(x.arg1().bare_type().is_int_type());
   EXPECT_FALSE(x.is_array_type());
@@ -219,12 +219,12 @@ TEST(blockVarType, createVectorBoundedSized) {
 }
 
 TEST(blockVarType, createVectorLocScaleSized) {
-  locscale r1(int_literal(-2), int_literal(2));
+  offset_multiplier r1(int_literal(-2), int_literal(2));
   expression N(int_literal(4));
   vector_block_type tVector(r1, N);
   block_var_type x(tVector);
   EXPECT_FALSE(x.has_def_bounds());
-  EXPECT_TRUE(x.has_def_locscale());
+  EXPECT_TRUE(x.has_def_offset_multiplier());
   EXPECT_FALSE(x.is_constrained());
   EXPECT_TRUE(x.arg1().bare_type().is_int_type());
   EXPECT_FALSE(x.is_array_type());
@@ -264,7 +264,7 @@ TEST(blockVarType, createRowVectorBoundedSized) {
   row_vector_block_type tRowVector(r1, N);
   block_var_type x(tRowVector);
   EXPECT_TRUE(x.has_def_bounds());
-  EXPECT_FALSE(x.has_def_locscale());
+  EXPECT_FALSE(x.has_def_offset_multiplier());
   EXPECT_TRUE(x.is_constrained());
   EXPECT_TRUE(x.arg1().bare_type().is_int_type());
   EXPECT_FALSE(x.is_array_type());
@@ -279,12 +279,12 @@ TEST(blockVarType, createRowVectorBoundedSized) {
 }
 
 TEST(blockVarType, createRowVectorLocScaleSized) {
-  locscale r1(int_literal(-2), int_literal(2));
+  offset_multiplier r1(int_literal(-2), int_literal(2));
   expression N(int_literal(4));
   row_vector_block_type tRowVector(r1, N);
   block_var_type x(tRowVector);
   EXPECT_FALSE(x.has_def_bounds());
-  EXPECT_TRUE(x.has_def_locscale());
+  EXPECT_TRUE(x.has_def_offset_multiplier());
   EXPECT_FALSE(x.is_constrained());
   EXPECT_TRUE(x.arg1().bare_type().is_int_type());
   EXPECT_FALSE(x.is_array_type());
@@ -327,7 +327,7 @@ TEST(blockVarType, createMatrixBoundedSized) {
   matrix_block_type tMatrix(r1, M, N);
   block_var_type x(tMatrix);
   EXPECT_TRUE(x.has_def_bounds());
-  EXPECT_FALSE(x.has_def_locscale());
+  EXPECT_FALSE(x.has_def_offset_multiplier());
   EXPECT_TRUE(x.is_constrained());
   EXPECT_TRUE(x.arg1().bare_type().is_int_type());
   EXPECT_TRUE(x.arg2().bare_type().is_int_type());
@@ -343,13 +343,13 @@ TEST(blockVarType, createMatrixBoundedSized) {
 }
 
 TEST(blockVarType, createMatrixLocScaleSized) {
-  locscale r1(int_literal(-2), int_literal(2));
+  offset_multiplier r1(int_literal(-2), int_literal(2));
   expression M(int_literal(3));
   expression N(int_literal(4));
   matrix_block_type tMatrix(r1, M, N);
   block_var_type x(tMatrix);
   EXPECT_FALSE(x.has_def_bounds());
-  EXPECT_TRUE(x.has_def_locscale());
+  EXPECT_TRUE(x.has_def_offset_multiplier());
   EXPECT_FALSE(x.is_constrained());
   EXPECT_TRUE(x.arg1().bare_type().is_int_type());
   EXPECT_TRUE(x.arg2().bare_type().is_int_type());
@@ -385,7 +385,7 @@ TEST(blockVarType, createCopy) {
 TEST(blockVarType, createArray) {
   int_block_type tInt;
   expression e1;
-  block_array_type d1(tInt,e1);
+  block_array_type d1(tInt, e1);
   block_var_type x(d1);
   EXPECT_TRUE(x.is_array_type());
   EXPECT_FALSE(x.is_specialized());
@@ -404,7 +404,7 @@ TEST(blockVarType, createArray) {
 TEST(blockVarType, get1dArrayLens) {
   int_block_type tInt;
   expression e1;
-  block_array_type d1(tInt,e1);
+  block_array_type d1(tInt, e1);
   block_var_type x(d1);
 
   std::vector<expression> lens = d1.array_lens();
@@ -416,7 +416,7 @@ TEST(blockVarType, get1dArrayLens) {
 TEST(blockVarType, getArrayElType) {
   int_block_type tInt;
   expression e1;
-  block_array_type d1(tInt,e1);
+  block_array_type d1(tInt, e1);
   block_var_type x(d1);
   block_var_type y(tInt);
   EXPECT_TRUE(x.is_array_type());
@@ -431,13 +431,13 @@ TEST(blockVarType, getArrayElType) {
 TEST(blockVarType, create2DArray) {
   int_block_type tInt;
   expression e1;
-  block_array_type d1(tInt,e1);
+  block_array_type d1(tInt, e1);
   block_var_type x(d1);
   EXPECT_TRUE(x.is_array_type());
   EXPECT_EQ(x.num_dims(), 1);
 
   expression e2;
-  block_array_type d2(x,e2);
+  block_array_type d2(x, e2);
   EXPECT_EQ(d2.dims(), 2);
 
   block_var_type y(d2);
@@ -465,8 +465,8 @@ TEST(blockVarType, create3DArray) {
   dims.push_back(e1);
   dims.push_back(e1);
   dims.push_back(e1);
-  
-  block_array_type d3(tInt,dims);
+
+  block_array_type d3(tInt, dims);
   block_var_type x(d3);
   EXPECT_TRUE(x.is_array_type());
   EXPECT_EQ(x.num_dims(), 3);
@@ -487,13 +487,13 @@ TEST(blockVarType, create2DArrayOfMatrices) {
   expression e4;
 
   matrix_block_type tMat(r1, e1, e2);
-  block_array_type d1(tMat,e3);
+  block_array_type d1(tMat, e3);
   block_var_type x(d1);
   EXPECT_TRUE(x.is_array_type());
   EXPECT_EQ(x.num_dims(), 3);
   EXPECT_EQ(x.array_dims(), 1);
 
-  block_array_type d2(x,e4);
+  block_array_type d2(x, e4);
   EXPECT_EQ(d2.dims(), 2);
 
   block_var_type y(d2);
@@ -516,14 +516,14 @@ TEST(blockVarType, get2dArrayLens) {
   expression e4;
 
   matrix_block_type tMat(r1, e1, e2);
-  block_array_type d1(tMat,e3);
+  block_array_type d1(tMat, e3);
   block_var_type x(d1);
   EXPECT_TRUE(x.is_array_type());
   EXPECT_EQ(x.num_dims(), 3);
   EXPECT_EQ(x.array_dims(), 1);
   EXPECT_EQ(d1.dims(), 1);
 
-  block_array_type d2(x,e4);
+  block_array_type d2(x, e4);
   EXPECT_EQ(d2.dims(), 2);
 
   block_var_type y(d2);
@@ -536,7 +536,6 @@ TEST(blockVarType, get2dArrayLens) {
   EXPECT_EQ(array_lens.size(), y.array_dims());
 }
 
-
 TEST(blockVarType, createArrayInt) {
   range r1;
   expression e1;
@@ -546,7 +545,7 @@ TEST(blockVarType, createArrayInt) {
   std::vector<expression> dims;
   dims.push_back(e1);
 
-  block_array_type d1(tInt,dims);
+  block_array_type d1(tInt, dims);
   block_var_type y(d1);
   EXPECT_TRUE(y.is_array_type());
   EXPECT_TRUE(y.array_contains().bare_type().is_int_type());
@@ -567,7 +566,7 @@ TEST(blockVarType, create2DArrayInt) {
   dims.push_back(e1);
   dims.push_back(e2);
 
-  block_array_type d2(tInt,dims);
+  block_array_type d2(tInt, dims);
   block_var_type y(d2);
   EXPECT_TRUE(y.is_array_type());
   EXPECT_TRUE(y.array_contains().bare_type().is_int_type());
@@ -602,7 +601,7 @@ TEST(blockVarType, create4DArrayInt) {
   dims.push_back(e3);
   dims.push_back(e4);
 
-  block_array_type d4(tInt,dims);
+  block_array_type d4(tInt, dims);
   block_var_type y(d4);
   EXPECT_TRUE(y.is_array_type());
   EXPECT_TRUE(y.array_contains().bare_type().is_int_type());
