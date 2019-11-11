@@ -353,8 +353,12 @@ namespace stan {
 	  } catch(const std::exception& e) {
 	    std::cout << e.what() << std::endl;
 	    std::cout << "Exception while using experimental adaptation, falling back to diagonal" << std::endl;
-	    Eigen::MatrixXd cov = covariance(Y);
-	    var = diagonal_metric(M, cov).mean().diagonal();
+	    if(Y.cols() > 1) {
+	      Eigen::MatrixXd cov = covariance(Y);
+	      var = diagonal_metric(M, cov).mean().diagonal();
+	    } else {
+	      var = Eigen::VectorXd::Ones(q.size());
+	    }
 	  }
 
 	  /*std::cout << A << std::endl;
