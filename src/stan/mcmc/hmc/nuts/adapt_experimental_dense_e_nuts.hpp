@@ -52,6 +52,9 @@ namespace stan {
 
           if (update) {
             this->init_stepsize(logger);
+	    
+	    this->z_.inv_e_metric_U_ = this->z_.inv_e_metric_.llt().matrixU();
+	    
             this->stepsize_adaptation_.set_mu(log(stability_limit));
             this->stepsize_adaptation_.restart();
           }

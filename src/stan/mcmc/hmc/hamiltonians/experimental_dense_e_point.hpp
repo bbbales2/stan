@@ -16,6 +16,7 @@ namespace stan {
        * Inverse mass matrix.
        */
       Eigen::MatrixXd inv_e_metric_;
+      Eigen::MatrixXd inv_e_metric_U_;
 
       /**
        * Construct a dense point in n-dimensional phase space
@@ -26,6 +27,7 @@ namespace stan {
       explicit experimental_dense_e_point(int n)
         : ps_point(n), inv_e_metric_(n, n) {
         inv_e_metric_.setIdentity();
+	inv_e_metric_U_.setIdentity();
       }
 
       /**
@@ -36,6 +38,7 @@ namespace stan {
       void
       set_metric(const Eigen::MatrixXd& inv_e_metric) {
         inv_e_metric_ = inv_e_metric;
+	inv_e_metric_U_ = inv_e_metric_.llt().matrixU();
       }
 
       /**
