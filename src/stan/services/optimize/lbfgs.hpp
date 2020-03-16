@@ -183,11 +183,11 @@ int lbfgs(Model& model, const stan::io::var_context& init,
     double nlp;
     Eigen::VectorXd grad_nlp;
     Eigen::MatrixXd hess_nlp;
-  
+
     stan::math::finite_diff_hessian_auto(f, cont_eigen_vector, nlp, grad_nlp, hess_nlp);
 
     Eigen::MatrixXd hess_nlp_U = (hess_nlp + Eigen::MatrixXd::Identity(hess_nlp.rows(), hess_nlp.cols()) * laplace_diag_shift).eval().llt().matrixU();
-  
+
     boost::variate_generator<decltype(rng)&, boost::normal_distribution<> >
       rand_dense_gaus(rng, boost::normal_distribution<>());
 
@@ -203,9 +203,12 @@ int lbfgs(Model& model, const stan::io::var_context& init,
       for (size_t i = 0; i < u.size(); ++i)
 	u(i) = rand_dense_gaus();
 
-      u = hess_nlp_U.triangularView<Eigen::Upper>().solve(u).eval();
+      u = hess_nlp_U.triangularView<Eigen::Upper>().solve(u).eval() + cont_eigen_vector;
 
-      model.write_array(rng, u_std_vector, disc_vector, values, true, true, &msg);
+      try {
+	model.write_array(rng, u_std_vector, disc_vector, values, true, true, &msg);
+      } catch(...) {}
+
       if (msg.str().length() > 0)
 	logger.info(msg);
 
