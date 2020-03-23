@@ -69,7 +69,7 @@ int lbfgs(Model& model, const stan::io::var_context& init,
   typedef stan::optimization::BFGSLineSearch<Model,
                                              stan::optimization::LBFGSUpdate<> >
       Optimizer;
-  Optimizer lbfgs(model, cont_vector, disc_vector, &lbfgs_ss);
+  Optimizer lbfgs(model, cont_vector, disc_vector, laplace_draws > 0, &lbfgs_ss);
   lbfgs.get_qnupdate().set_history_size(history_size);
   lbfgs._ls_opts.alpha0 = init_alpha;
   lbfgs._conv_opts.tolAbsF = tol_obj;
@@ -86,9 +86,11 @@ int lbfgs(Model& model, const stan::io::var_context& init,
   logger.info(initial_msg);
 
   std::vector<std::string> names;
-  names.push_back("lp__");
-  model.constrained_param_names(names, true, true);
-  parameter_writer(names);
+  if(save_iterations || laplace_draws == 0) {
+    names.push_back("lp__");
+    model.constrained_param_names(names, true, true);
+    parameter_writer(names);
+  }
 
   if (save_iterations) {
     std::vector<double> values;
@@ -157,7 +159,7 @@ int lbfgs(Model& model, const stan::io::var_context& init,
     }
   }
 
-  if (!save_iterations) {
+  if (!save_iterations && laplace_draws == 0) {
     std::vector<double> values;
     std::stringstream msg;
     model.write_array(rng, cont_vector, disc_vector, values, true, true, &msg);

@@ -295,13 +295,16 @@ class ModelAdaptor {
  private:
   M &_model;
   std::vector<int> _params_i;
+  bool include_jacobian_;
   std::ostream *_msgs;
   std::vector<double> _x, _g;
   size_t _fevals;
 
  public:
-  ModelAdaptor(M &model, const std::vector<int> &params_i, std::ostream *msgs)
-      : _model(model), _params_i(params_i), _msgs(msgs), _fevals(0) {}
+  ModelAdaptor(M &model, const std::vector<int> &params_i,
+	       bool include_jacobian, std::ostream *msgs)
+    : _model(model), _params_i(params_i), _msgs(msgs),
+      include_jacobian_(include_jacobian), _fevals(0) {}
 
   size_t fevals() const { return _fevals; }
   int operator()(const Eigen::Matrix<double, Eigen::Dynamic, 1> &x, double &f) {
@@ -316,7 +319,11 @@ class ModelAdaptor {
       _x[i] = x[i];
 
     try {
-      f = -log_prob_propto<false>(_model, _x, _params_i, _msgs);
+      if(include_jacobian_) {
+	f = -log_prob_propto<true>(_model, _x, _params_i, _msgs);
+      } else {
+	f = -log_prob_propto<false>(_model, _x, _params_i, _msgs);
+      }
     } catch (const std::exception &e) {
       if (_msgs)
         (*_msgs) << e.what() << std::endl;
@@ -348,7 +355,11 @@ class ModelAdaptor {
     _fevals++;
 
     try {
-      f = -log_prob_grad<true, false>(_model, _x, _params_i, _g, _msgs);
+      if(include_jacobian_) {
+	f = -log_prob_grad<true, true>(_model, _x, _params_i, _g, _msgs);
+      } else {
+	f = -log_prob_grad<true, false>(_model, _x, _params_i, _g, _msgs);
+      }
     } catch (const std::exception &e) {
       if (_msgs)
         (*_msgs) << e.what() << std::endl;
@@ -397,8 +408,10 @@ class BFGSLineSearch : public BFGSMinimizer<ModelAdaptor<M>, QNUpdateType,
   typedef typename stan::math::index_type<vector_t>::type idx_t;
 
   BFGSLineSearch(M &model, const std::vector<double> &params_r,
-                 const std::vector<int> &params_i, std::ostream *msgs = 0)
-      : BFGSBase(_adaptor), _adaptor(model, params_i, msgs) {
+                 const std::vector<int> &params_i,
+		 bool include_jacobian,
+		 std::ostream *msgs = 0)
+    : BFGSBase(_adaptor), _adaptor(model, params_i, include_jacobian, msgs) {
     initialize(params_r);
   }
 
