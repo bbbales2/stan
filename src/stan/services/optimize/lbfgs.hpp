@@ -55,7 +55,7 @@ int lbfgs(Model& model, const stan::io::var_context& init,
           int history_size, double init_alpha, double tol_obj,
           double tol_rel_obj, double tol_grad, double tol_rel_grad,
           double tol_param, int num_iterations, bool save_iterations,
-	  int laplace_draws, double laplace_diag_shift,
+	  int laplace_draws, double laplace_add_diag,
           int refresh, callbacks::interrupt& interrupt,
           callbacks::logger& logger, callbacks::writer& init_writer,
           callbacks::writer& parameter_writer) {
@@ -188,31 +188,50 @@ int lbfgs(Model& model, const stan::io::var_context& init,
 
     stan::math::finite_diff_hessian_auto(f, cont_eigen_vector, nlp, grad_nlp, hess_nlp);
 
-    Eigen::MatrixXd hess_nlp_U = (hess_nlp + Eigen::MatrixXd::Identity(hess_nlp.rows(), hess_nlp.cols()) * laplace_diag_shift).eval().llt().matrixU();
-
+    Eigen::MatrixXd hess_nlp_U = (hess_nlp + Eigen::MatrixXd::Identity(hess_nlp.rows(), hess_nlp.cols()) * laplace_add_diag).eval().llt().matrixU();
+  
     boost::variate_generator<decltype(rng)&, boost::normal_distribution<> >
       rand_dense_gaus(rng, boost::normal_distribution<>());
 
     parameter_writer("Draws from Laplace Approximation:");
-    names.erase(names.begin(), names.begin() + 1);
-    parameter_writer(names);
+
+    std::vector<std::string> laplace_names;
+    laplace_names.push_back("lp__");
+    laplace_names.push_back("log_p");
+    laplace_names.push_back("log_g");
+    model.constrained_param_names(laplace_names, true, true);
+    parameter_writer(laplace_names);
+
     for(size_t n = 0; n < laplace_draws; ++n) {
-      std::vector<double> u_std_vector(cont_eigen_vector.size());
-      Eigen::Map<Eigen::VectorXd> u(u_std_vector.data(), u_std_vector.size());
+      std::vector<double> laplace_cont_vector(cont_eigen_vector.size());
+      Eigen::VectorXd x(cont_eigen_vector.size());
       std::vector<double> values;
       std::stringstream msg;
 
-      for (size_t i = 0; i < u.size(); ++i)
-	u(i) = rand_dense_gaus();
+      for (size_t i = 0; i < x.size(); ++i)
+	x(i) = rand_dense_gaus();
 
-      u = hess_nlp_U.triangularView<Eigen::Upper>().solve(u).eval() + cont_eigen_vector;
+      Eigen::VectorXd laplace_cont_eigen_vector = hess_nlp_U.triangularView<Eigen::Upper>().solve(x).eval() + cont_eigen_vector;
 
+      for (size_t i = 0; i < laplace_cont_vector.size(); ++i)
+	laplace_cont_vector[i] = laplace_cont_eigen_vector(i);
+
+      // log_g : Log probability of approximation in unconstrained space dropping constants
+      double log_g = -0.5 * x.transpose() * x;
+
+      // log_p : Log probability in the unconstrained space
+      double log_p = model.template log_prob<false, true>(laplace_cont_eigen_vector, &msg);
+      if (msg.str().length() > 0)
+        logger.info(msg);
+
+      msg.str("");
       try {
-	model.write_array(rng, u_std_vector, disc_vector, values, true, true, &msg);
+	model.write_array(rng, laplace_cont_vector, disc_vector, values, true, true, &msg);
       } catch(...) {}
-
       if (msg.str().length() > 0)
 	logger.info(msg);
+
+      values.insert(values.begin(), { 0, log_p, log_g });
 
       parameter_writer(values);
     }

@@ -66,7 +66,7 @@ int bfgs(Model& model, const stan::io::var_context& init,
   typedef stan::optimization::BFGSLineSearch<
       Model, stan::optimization::BFGSUpdate_HInv<> >
       Optimizer;
-  Optimizer bfgs(model, cont_vector, disc_vector, &bfgs_ss);
+  Optimizer bfgs(model, cont_vector, disc_vector, false, &bfgs_ss);
   bfgs._ls_opts.alpha0 = init_alpha;
   bfgs._conv_opts.tolAbsF = tol_obj;
   bfgs._conv_opts.tolRelF = tol_rel_obj;
