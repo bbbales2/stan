@@ -220,7 +220,12 @@ int lbfgs(Model& model, const stan::io::var_context& init,
       double log_g = -0.5 * x.transpose() * x;
 
       // log_p : Log probability in the unconstrained space
-      double log_p = model.template log_prob<false, true>(laplace_cont_eigen_vector, &msg);
+      double log_p = 0.0;
+
+      try {
+	log_p = model.template log_prob<false, true>(laplace_cont_eigen_vector, &msg);
+      } catch(...) {}
+
       if (msg.str().length() > 0)
         logger.info(msg);
 
@@ -228,6 +233,7 @@ int lbfgs(Model& model, const stan::io::var_context& init,
       try {
 	model.write_array(rng, laplace_cont_vector, disc_vector, values, true, true, &msg);
       } catch(...) {}
+
       if (msg.str().length() > 0)
 	logger.info(msg);
 
