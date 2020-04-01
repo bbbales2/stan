@@ -86,11 +86,11 @@ int lbfgs(Model& model, const stan::io::var_context& init,
   logger.info(initial_msg);
 
   std::vector<std::string> names;
-  if(save_iterations || laplace_draws == 0) {
-    names.push_back("lp__");
-    model.constrained_param_names(names, true, true);
-    parameter_writer(names);
-  }
+  //if(save_iterations || laplace_draws == 0) {
+  names.push_back("lp__");
+  model.constrained_param_names(names, true, true);
+  parameter_writer(names);
+  //}
 
   if (save_iterations) {
     std::vector<double> values;
@@ -159,7 +159,7 @@ int lbfgs(Model& model, const stan::io::var_context& init,
     }
   }
 
-  if (!save_iterations && laplace_draws == 0) {
+  if (!save_iterations/* && laplace_draws == 0*/) {
     std::vector<double> values;
     std::stringstream msg;
     model.write_array(rng, cont_vector, disc_vector, values, true, true, &msg);
