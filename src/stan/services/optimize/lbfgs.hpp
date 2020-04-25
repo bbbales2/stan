@@ -173,10 +173,9 @@ int lbfgs(Model& model, const stan::io::var_context& init,
   if(laplace_draws > 0) {
     Eigen::Map<Eigen::VectorXd> cont_eigen_vector(cont_vector.data(), cont_vector.size());
   
-    auto f = [&](const Eigen::VectorXd& theta) {
+    auto f = [&](auto theta) {
       std::stringstream msg;
-      Eigen::VectorXd theta_ = theta;
-      double nlp = -model.log_prob(theta_, &msg);
+      auto nlp = -model.log_prob(theta, &msg);
       if (msg.str().length() > 0)
 	logger.info(msg);
       return nlp;
@@ -184,12 +183,29 @@ int lbfgs(Model& model, const stan::io::var_context& init,
 
     double nlp;
     Eigen::VectorXd grad_nlp;
-    Eigen::MatrixXd hess_nlp;
+    Eigen::MatrixXd hess_nlp(cont_eigen_vector.size(), cont_eigen_vector.size());
 
-    stan::math::finite_diff_hessian_auto(f, cont_eigen_vector, nlp, grad_nlp, hess_nlp);
+    for(size_t i = 0; i < cont_eigen_vector.size(); ++i) {
+      double fx;
+      double dx = 1e-04 * std::fmax(1, fabs(cont_eigen_vector(i)));
+      Eigen::VectorXd grad1;
+      Eigen::VectorXd grad2;
+      Eigen::VectorXd x1 = cont_eigen_vector;
+      Eigen::VectorXd x2 = cont_eigen_vector;
+
+      x1(i) += dx;
+      x2(i) -= dx;
+
+      stan::math::gradient(f, x1, fx, grad1);
+      stan::math::gradient(f, x2, fx, grad2);
+
+      hess_nlp.block(0, i, cont_eigen_vector.size(), 1) = (grad1 - grad2) / (2 * dx);
+    }
+
+    hess_nlp = (hess_nlp + hess_nlp.transpose()).eval() / 2.0;
 
     Eigen::MatrixXd hess_nlp_U = (hess_nlp + Eigen::MatrixXd::Identity(hess_nlp.rows(), hess_nlp.cols()) * laplace_add_diag).eval().llt().matrixU();
-  
+
     boost::variate_generator<decltype(rng)&, boost::normal_distribution<> >
       rand_dense_gaus(rng, boost::normal_distribution<>());
 
@@ -211,7 +227,9 @@ int lbfgs(Model& model, const stan::io::var_context& init,
       for (size_t i = 0; i < x.size(); ++i)
 	x(i) = rand_dense_gaus();
 
-      Eigen::VectorXd laplace_cont_eigen_vector = hess_nlp_U.triangularView<Eigen::Upper>().solve(x).eval() + cont_eigen_vector;
+      Eigen::VectorXd laplace_cont_eigen_vector(x.size());
+
+      laplace_cont_eigen_vector = hess_nlp_U.triangularView<Eigen::Upper>().solve(x).eval() + cont_eigen_vector;
 
       for (size_t i = 0; i < laplace_cont_vector.size(); ++i)
 	laplace_cont_vector[i] = laplace_cont_eigen_vector(i);
